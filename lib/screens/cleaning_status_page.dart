@@ -24,6 +24,12 @@ class _CleaningStatusPageState extends State<CleaningStatusPage> {
   }
 
   Future<void> _initializeStatuses() async {
+    if (mounted) {
+      setState(() {
+        _isFetchingInitialData = true;
+      });
+    }
+
     try {
       final detailsList = await ApiService.fetchCleaningDetails();
       if (mounted) {
@@ -36,7 +42,12 @@ class _CleaningStatusPageState extends State<CleaningStatusPage> {
         });
       }
     } catch (e) {
-      // Handle error fetching apartments
+      if (mounted) {
+        _showSnackBar(
+          'Error fetching apartment list. Please try again.',
+          Colors.red,
+        );
+      }
     }
 
     for (var apt in _apartments) {
@@ -194,10 +205,12 @@ class _CleaningStatusPageState extends State<CleaningStatusPage> {
       if (response.statusCode == 200) {
         if (mounted) {
           setState(() {
-            if (statusToSend == 'start')
+            if (statusToSend == 'start') {
               _cleaningStatus[apartmentId] = 'in_progress';
-            if (statusToSend == 'stop')
+            }
+            if (statusToSend == 'stop') {
               _cleaningStatus[apartmentId] = 'cleaned';
+            }
             if (statusToSend == 'reset') {
               _cleaningStatus[apartmentId] = 'not_cleaned';
               _ratings[apartmentId] = 0;
@@ -328,7 +341,7 @@ class _CleaningStatusPageState extends State<CleaningStatusPage> {
                   }
 
                   return Card(
-                    color: Colors.white, // FIX: Ensure card background is white
+                    color: Colors.white,
                     elevation: 2,
                     margin: const EdgeInsets.symmetric(vertical: 12.0),
                     child: Padding(
@@ -367,13 +380,28 @@ class _CleaningStatusPageState extends State<CleaningStatusPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Colors.grey.shade200,
+                            backgroundImage: apartment.imageUrl.isNotEmpty
+                                ? NetworkImage(apartment.imageUrl)
+                                : null,
+                            child: apartment.imageUrl.isEmpty
+                                ? const Icon(
+                                    Icons.apartment,
+                                    size: 50,
+                                    color: Colors.grey,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
                           _buildStarRating(apartment.id),
                           const SizedBox(height: 16),
                           isLoading
                               ? const Center(child: CircularProgressIndicator())
                               : SizedBox(
-                                  width: 250,
-                                  height: 80,
+                                  width: 220,
+                                  height: 50,
                                   child: ElevatedButton(
                                     onPressed: isButtonDisabled
                                         ? null
@@ -384,7 +412,7 @@ class _CleaningStatusPageState extends State<CleaningStatusPage> {
                                       disabledBackgroundColor:
                                           Colors.grey.shade400,
                                       textStyle: const TextStyle(
-                                        fontSize: 22,
+                                        fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                       ),
                                       shape: RoundedRectangleBorder(
@@ -394,6 +422,7 @@ class _CleaningStatusPageState extends State<CleaningStatusPage> {
                                     child: Text(buttonText),
                                   ),
                                 ),
+                          const SizedBox(height: 8),
                         ],
                       ),
                     ),

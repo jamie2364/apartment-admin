@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cleaning_app/models/cleaning_details.dart';
+import 'package:cleaning_app/models/inventory_item.dart';
 import 'package:cleaning_app/services/api_service.dart';
 import 'package:cleaning_app/screens/apartment_inventory_list_page.dart';
 
@@ -11,12 +12,24 @@ class ProductInventoryPage extends StatefulWidget {
 }
 
 class _ProductInventoryPageState extends State<ProductInventoryPage> {
-  late Future<List<CleaningDetails>> _apartmentsFuture;
+  late Future<(List<CleaningDetails>, List<InventoryItem>)> _dataFuture;
 
   @override
   void initState() {
     super.initState();
-    _apartmentsFuture = ApiService.fetchCleaningDetails();
+    _dataFuture = _fetchData();
+  }
+
+  Future<(List<CleaningDetails>, List<InventoryItem>)> _fetchData() async {
+    // Use Future.wait to fetch both lists in parallel for efficiency
+    final results = await Future.wait([
+      ApiService.fetchCleaningDetails(),
+      ApiService.fetchInventoryItems(),
+    ]);
+    return (
+      results[0] as List<CleaningDetails>,
+      results[1] as List<InventoryItem>,
+    );
   }
 
   void _navigateToInventoryList(
@@ -41,8 +54,8 @@ class _ProductInventoryPageState extends State<ProductInventoryPage> {
         title: const Text('Inventory', style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF8CB2A4),
       ),
-      body: FutureBuilder<List<CleaningDetails>>(
-        future: _apartmentsFuture,
+      body: FutureBuilder<(List<CleaningDetails>, List<InventoryItem>)>(
+        future: _dataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -50,19 +63,32 @@ class _ProductInventoryPageState extends State<ProductInventoryPage> {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          if (!snapshot.hasData || snapshot.data!.$1.isEmpty) {
             return const Center(child: Text('No apartments found.'));
           }
 
-          final apartments = snapshot.data!;
-          return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: apartments.length,
-            itemBuilder: (context, index) {
-              final apartment = apartments[index];
-              return SizedBox(
-                height: 260,
-                child: GestureDetector(
+          final apartments = snapshot.data!.$1;
+          final allInventoryItems = snapshot.data!.$2;
+
+          return RefreshIndicator(
+            onRefresh: () {
+              setState(() {
+                _dataFuture = _fetchData();
+              });
+              return _dataFuture;
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16.0),
+              itemCount: apartments.length,
+              itemBuilder: (context, index) {
+                final apartment = apartments[index];
+                final inventoryCount = allInventoryItems
+                    .where((item) => item.apartmentId == apartment.id)
+                    .length;
+                final subtitle =
+                    '$inventoryCount ${inventoryCount == 1 ? "item" : "items"}';
+
+                return GestureDetector(
                   onTap: () => _navigateToInventoryList(
                     context,
                     apartment.id,
@@ -76,7 +102,10 @@ class _ProductInventoryPageState extends State<ProductInventoryPage> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 24.0,
+                        horizontal: 16.0,
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -96,11 +125,9 @@ class _ProductInventoryPageState extends State<ProductInventoryPage> {
                                 : null,
                           ),
                           const SizedBox(height: 20),
-                          // This Row places the title and arrow side-by-side
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize:
-                                MainAxisSize.min, // Keeps the row centered
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 apartment.name,
@@ -117,13 +144,21 @@ class _ProductInventoryPageState extends State<ProductInventoryPage> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 6),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),
