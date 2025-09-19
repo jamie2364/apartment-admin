@@ -5,6 +5,7 @@ import 'package:cleaning_app/models/cleaning_details.dart';
 
 class ApiService {
   static const String _wordpressUrl = 'https://wildatlanticapartments.com';
+  static const String _apiNamespace = '/wp-json/apartment_admin/v1';
   static const String _username = 'info@vivantestudios.com';
   static const String _applicationPassword = 'cf6A VVaH KXqh tmMA y3hK Czhr';
 
@@ -19,7 +20,7 @@ class ApiService {
   // --- Cleaning Status Endpoints ---
 
   static Future<Map<String, dynamic>> fetchCleaningStatuses() async {
-    final uri = Uri.parse('$_wordpressUrl/wp-json/cleaning_status/v1/statuses');
+    final uri = Uri.parse('$_wordpressUrl$_apiNamespace/status/all');
     final response = await http.get(uri);
     if (response.statusCode == 200) {
       return json.decode(response.body);
@@ -29,11 +30,8 @@ class ApiService {
   }
 
   static Future<List<CleaningDetails>> fetchCleaningDetails() async {
-    final uri = Uri.parse('$_wordpressUrl/wp-json/cleaning_status/v1/details');
-    final response = await http.get(
-      uri,
-      headers: {'Authorization': _basicAuth},
-    );
+    final uri = Uri.parse('$_wordpressUrl$_apiNamespace/status/details');
+    final response = await http.get(uri, headers: _authHeaders);
     if (response.statusCode == 200) {
       final List<dynamic> decodedData = json.decode(response.body);
       return decodedData.map((data) => CleaningDetails.fromJson(data)).toList();
@@ -50,7 +48,7 @@ class ApiService {
     required int rating,
     int? durationMinutes,
   }) {
-    final uri = Uri.parse('$_wordpressUrl/wp-json/cleaning_status/v1/update');
+    final uri = Uri.parse('$_wordpressUrl$_apiNamespace/status/update');
     final Map<String, dynamic> requestBody = {
       'status': statusToSend,
       'apartment_id': apartmentId,
@@ -70,11 +68,8 @@ class ApiService {
   // --- Inventory Endpoints ---
 
   static Future<List<InventoryItem>> fetchInventoryItems() async {
-    final uri = Uri.parse('$_wordpressUrl/wp-json/inventory/v1/items');
-    final response = await http.get(
-      uri,
-      headers: {'Authorization': _basicAuth},
-    );
+    final uri = Uri.parse('$_wordpressUrl$_apiNamespace/inventory/items');
+    final response = await http.get(uri, headers: _authHeaders);
     if (response.statusCode == 200) {
       final List<dynamic> decodedData = json.decode(response.body);
       return decodedData.map((item) => InventoryItem.fromJson(item)).toList();
@@ -84,7 +79,9 @@ class ApiService {
   }
 
   static Future<http.Response> updateStock(int itemId, String action) {
-    final uri = Uri.parse('$_wordpressUrl/wp-json/inventory/v1/update-stock');
+    final uri = Uri.parse(
+      '$_wordpressUrl$_apiNamespace/inventory/update-stock',
+    );
     return http.post(
       uri,
       headers: _authHeaders,
@@ -93,7 +90,9 @@ class ApiService {
   }
 
   static Future<http.Response> updateImageUrl(int itemId, String imageUrl) {
-    final uri = Uri.parse('$_wordpressUrl/wp-json/inventory/v1/update-image');
+    final uri = Uri.parse(
+      '$_wordpressUrl$_apiNamespace/inventory/update-image',
+    );
     return http.post(
       uri,
       headers: _authHeaders,
@@ -105,9 +104,9 @@ class ApiService {
     required String name,
     required String url,
     required int stock,
-    required String apartmentId, // ADDED
+    required String apartmentId,
   }) async {
-    final uri = Uri.parse('$_wordpressUrl/wp-json/inventory/v1/add-item');
+    final uri = Uri.parse('$_wordpressUrl$_apiNamespace/inventory/add');
     final response = await http.post(
       uri,
       headers: _authHeaders,
@@ -115,7 +114,7 @@ class ApiService {
         'name': name,
         'url': url,
         'stock': stock,
-        'apartmentId': apartmentId, // ADDED
+        'apartmentId': apartmentId,
       }),
     );
     if (response.statusCode == 201) {
@@ -128,7 +127,7 @@ class ApiService {
   }
 
   static Future<http.Response> deleteItem(int itemId) {
-    final uri = Uri.parse('$_wordpressUrl/wp-json/inventory/v1/delete-item');
+    final uri = Uri.parse('$_wordpressUrl$_apiNamespace/inventory/delete');
     return http.post(
       uri,
       headers: _authHeaders,
